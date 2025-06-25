@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khám Phá Tương Tác Thuật Toán RSA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Visualization & Content Choices:
+    - Report Info: RSA process (key gen, encrypt, decrypt). -> Goal: Demonstrate the full algorithm flow interactively. -> Viz/Method: A multi-step interactive form (the "RSA Simulator") built with HTML and JS (using BigInt for calculations). -> Interaction: User inputs p, q, e, and a message. The application calculates n, phi(n), d, ciphertext, and decrypted text in sequence. "Load Example" buttons pre-fill data from the report's exercises. Detailed step-by-step solutions for each problem are now displayed in a dedicated area when an example is loaded. -> Justification: This provides a hands-on learning experience that is far more effective than static text, augmented by immediate access to the full solution breakdown. -> Library: Vanilla JS.
+    - Report Info: Mathematical concepts (Euler's Totient, Modular Inverse). -> Goal: Explain the building blocks of RSA. -> Viz/Method: Small, dedicated interactive calculators for each concept within the "Mathematical Foundations" section. -> Interaction: Users input numbers and see the results calculated instantly. -> Justification: Breaks down complex math into manageable, verifiable pieces. -> Library: Vanilla JS.
+    - Report Info: Security concepts (Key Length). -> Goal: Illustrate the relationship between key size and security. -> Viz/Method: A bar chart showing different key lengths (1024, 2048, 4096) and their corresponding security status (e.g., "Vulnerable", "Secure", "More Secure"). -> Interaction: Static chart for clear visual comparison. -> Justification: A chart is more impactful than text for comparing quantitative data. -> Library: Chart.js.
+    - Report Info: Abstract concepts (Padding, Process diagrams). -> Goal: Visualize abstract structures. -> Viz/Method: Diagrams constructed using styled HTML/Tailwind divs, borders, and flexbox. -> Interaction: Static diagrams for clear illustration. -> Justification: Avoids external images and libraries (like SVG/Mermaid) while still providing clear visual aids. -> Library: Tailwind CSS.
+    -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+        }
+        .section-card {
+            background-color: #FFFFFF;
+            border: 1px solid #F0EAE1;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        .section-card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+        }
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: rgba(253, 251, 248, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .nav-link {
+            transition: color 0.3s, border-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #2563EB;
+            border-bottom-color: #2563EB;
+        }
+        .input-field {
+            border: 1px solid #D1D5DB;
+            background-color: #F9FAFB;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+        }
+        .btn {
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: background-color 0.3s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary {
+            background-color: #2563EB;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #1D4ED8;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .output-box {
+            background-color: #F3F4F6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            word-wrap: break-word;
+            border: 1px solid #E5E7EB;
+        }
+        h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1.5rem;
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1F2937;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background-color: #DBEAFE;
+            color: #1E40AF;
+            font-weight: 700;
+            font-size: 1.125rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .solution-details {
+            background-color: #FDFBF8;
+            border: 1px solid #E0E0E0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .solution-details h3 {
+            font-size: 1.3rem;
+            color: #2563EB;
+            margin-bottom: 1rem;
+        }
+        .solution-details h4 {
+            font-size: 1.1rem;
+            color: #1D4ED8;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .solution-details ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .solution-details ul li {
+            margin-bottom: 0.5rem;
+        }
+        .solution-details p {
+            margin-bottom: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="text-center py-10 bg-white border-b border-gray-200">
+        <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Khám Phá Tương Tác Thuật Toán RSA</h1>
+        <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">Một công cụ trực quan để tìm hiểu cách hoạt động của một trong những thuật toán mã hóa nền tảng nhất thế giới.</p>
+    </header>
+
+    <nav class="sticky-nav shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-center h-16">
+                <div class="flex space-x-8">
+                    <a href="#overview" class="nav-link inline-flex items-center px-1 pt-1 text-sm font-medium">Tổng Quan</a>
+                    <a href="#math-foundations" class="nav-link inline-flex items-center px-1 pt-1 text-sm font-medium">Nền Tảng Toán Học</a>
+                    <a href="#simulator" class="nav-link inline-flex items-center px-1 pt-1 text-sm font-medium">Mô Phỏng RSA</a>
+                    <a href="#advanced" class="nav-link inline-flex items-center px-1 pt-1 text-sm font-medium">Nâng Cao & Bảo Mật</a>
+                    <a href="#applications" class="nav-link inline-flex items-center px-1 pt-1 text-sm font-medium">Ứng Dụng</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+        <section id="overview" class="section-card">
+            <h2>📜 Tổng Quan về RSA</h2>
+            <p class="text-gray-600 mb-6">RSA (viết tắt của Rivest-Shamir-Adleman) là một thuật toán mã hóa khóa công khai và là nền tảng cho việc truyền dữ liệu an toàn. Điểm đặc biệt của nó là sử dụng một cặp khóa: một <strong>khóa công khai</strong> để mã hóa tin nhắn (có thể chia sẻ cho mọi người) và một <strong>khóa riêng tư</strong> để giải mã nó (chỉ người nhận mới biết). Sức mạnh của RSA nằm ở chỗ việc tìm ra khóa riêng tư từ khóa công khai là cực kỳ khó khăn về mặt tính toán.</p>
+            <div class="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                <h3 class="text-center">Luồng Hoạt Động Cơ Bản</h3>
+                <div class="mt-4 flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="text-center">
+                        <div class="p-4 bg-blue-100 text-blue-800 rounded-lg">Tin nhắn gốc</div>
+                        <div class="font-mono mt-1 text-sm">"STOP"</div>
+                    </div>
+                    <div class="text-2xl text-gray-400">→</div>
+                    <div class="text-center">
+                        <div class="p-4 bg-green-100 text-green-800 rounded-lg">Mã Hóa<br><span class="text-xs font-mono">(Khóa Công Khai)</span></div>
+                    </div>
+                    <div class="text-2xl text-gray-400">→</div>
+                    <div class="text-center">
+                        <div class="p-4 bg-red-100 text-red-800 rounded-lg">Bản mã</div>
+                        <div class="font-mono mt-1 text-sm">"2081..."</div>
+                    </div>
+                    <div class="text-2xl text-gray-400">→</div>
+                    <div class="text-center">
+                        <div class="p-4 bg-purple-100 text-purple-800 rounded-lg">Giải Mã<br><span class="text-xs font-mono">(Khóa Riêng Tư)</span></div>
+                    </div>
+                    <div class="text-2xl text-gray-400">→</div>
+                    <div class="text-center">
+                        <div class="p-4 bg-blue-100 text-blue-800 rounded-lg">Tin nhắn gốc</div>
+                        <div class="font-mono mt-1 text-sm">"STOP"</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="math-foundations" class="section-card">
+            <h2>🧮 Nền Tảng Toán Học</h2>
+            <p class="text-gray-600 mb-6">RSA được xây dựng trên một vài khái niệm cốt lõi từ lý thuyết số. Việc hiểu các khái niệm này sẽ giúp bạn nắm bắt được tại sao RSA lại an toàn và đáng tin cậy. Hãy thử các công cụ tính toán nhỏ dưới đây để khám phá chúng.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3>Hàm số Euler's Totient (φ(n))</h3>
+                    <p class="text-sm text-gray-500 mb-4">Hàm này đếm các số nguyên dương nhỏ hơn `n` và nguyên tố cùng nhau với `n`. Với `n = p * q` (p, q là số nguyên tố), công thức là `φ(n) = (p - 1) * (q - 1)`.</p>
+                    <div class="space-y-4">
+                        <input id="phi_p" type="number" placeholder="Nhập số nguyên tố p" class="input-field">
+                        <input id="phi_q" type="number" placeholder="Nhập số nguyên tố q" class="input-field">
+                        <button id="calc_phi" class="btn btn-primary w-full">Tính φ(n)</button>
+                        <div id="phi_result" class="output-box h-12"></div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Nghịch Đảo Nhân Mô-đun</h3>
+                    <p class="text-sm text-gray-500 mb-4">Trong RSA, khóa riêng tư `d` là nghịch đảo nhân mô-đun của khóa công khai `e` theo mô-đun `φ(n)`. Điều này có nghĩa là `(e * d) mod φ(n) = 1`.</p>
+                    <div class="space-y-4">
+                        <input id="mod_inv_e" type="number" placeholder="Nhập số mũ công khai e" class="input-field">
+                        <input id="mod_inv_phi" type="number" placeholder="Nhập giá trị φ(n)" class="input-field">
+                        <button id="calc_mod_inv" class="btn btn-primary w-full">Tính d</button>
+                        <div id="mod_inv_result" class="output-box h-12"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="simulator" class="section-card">
+            <h2>⚙️ Mô Phỏng RSA Từng Bước</h2>
+            <p class="text-gray-600 mb-6">Đây là nơi bạn có thể thực hành toàn bộ quy trình RSA. Hãy nhập các giá trị của riêng bạn hoặc tải các ví dụ từ bài tập để xem cách chúng hoạt động. Lưu ý: Thuật toán này hoạt động với các số rất lớn, vì vậy hãy sử dụng `BigInt` trong lập trình thực tế.</p>
+            
+            <div class="mb-4">
+                <label for="example-loader" class="block text-sm font-medium text-gray-700">Tải ví dụ từ bài tập:</label>
+                <select id="example-loader" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <option value="none">-- Chọn một bài tập --</option>
+                    <option value="ex1">Bài 1 & 2: Mã hóa/Giải mã "STOP"</option>
+                    <option value="ex3">Bài 3: Giải mã "0981 0461"</option>
+                    <option value="ex4">Bài 4: Tạo khóa với p=97, q=173</option>
+                    <option value="ex5">Bài 5: Tìm thông điệp gốc</option>
+                </select>
+            </div>
+            
+            <div class="space-y-8">
+                <div class="flex">
+                    <div class="step-indicator">1</div>
+                    <div>
+                        <h3 class="mt-0">Tạo Khóa</h3>
+                        <p class="text-sm text-gray-500 mb-4">Bắt đầu bằng cách chọn hai số nguyên tố `p` và `q` để tạo khóa công khai và khóa riêng tư.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pl-14">
+                    <div>
+                        <label class="font-semibold">Nhập p:</label>
+                        <input id="sim_p" type="text" class="input-field mt-1" placeholder="Số nguyên tố p">
+                    </div>
+                    <div>
+                        <label class="font-semibold">Nhập q:</label>
+                        <input id="sim_q" type="text" class="input-field mt-1" placeholder="Số nguyên tố q">
+                    </div>
+                </div>
+                <div class="pl-14">
+                    <button id="sim_calc_n_phi" class="btn btn-primary">Tính n và φ(n)</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pl-14">
+                    <div>
+                        <label class="font-semibold">n = p * q:</label>
+                        <div id="sim_n_result" class="output-box mt-1"></div>
+                    </div>
+                    <div>
+                        <label class="font-semibold">φ(n) = (p-1)*(q-1):</label>
+                        <div id="sim_phi_result" class="output-box mt-1"></div>
+                    </div>
+                </div>
+                 <div class="pl-14">
+                    <label class="font-semibold">Nhập số mũ công khai e:</label>
+                    <input id="sim_e" type="text" class="input-field mt-1" placeholder="1 < e < φ(n) và gcd(e, φ(n)) = 1">
+                    <button id="sim_calc_d" class="btn btn-primary mt-4">Tính số mũ riêng tư d</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pl-14">
+                    <div>
+                        <label class="font-semibold">🔑 Khóa Công Khai (n, e):</label>
+                        <div id="sim_public_key" class="output-box mt-1"></div>
+                    </div>
+                    <div>
+                        <label class="font-semibold">🔐 Khóa Riêng Tư (n, d):</label>
+                        <div id="sim_private_key" class="output-box mt-1"></div>
+                    </div>
+                </div>
+
+
+                <hr class="my-8 border-gray-200">
+
+                <div class="flex">
+                    <div class="step-indicator">2</div>
+                    <div>
+                        <h3 class="mt-0">Mã Hóa</h3>
+                        <p class="text-sm text-gray-500 mb-4">Nhập một thông điệp văn bản. Nó sẽ được chuyển thành các số (mã ASCII) và sau đó được mã hóa bằng khóa công khai `(n, e)`. Công thức: `C = M^e mod n`</p>
+                    </div>
+                </div>
+                <div class="pl-14">
+                    <label class="font-semibold">Thông điệp cần mã hóa:</label>
+                    <textarea id="sim_message" class="input-field mt-1" rows="2" placeholder="VD: STOP"></textarea>
+                    <button id="sim_encrypt" class="btn btn-primary mt-4">Mã Hóa</button>
+                </div>
+                <div class="pl-14">
+                    <label class="font-semibold">Thông điệp đã mã hóa (Ciphertext):</label>
+                    <div id="sim_ciphertext" class="output-box mt-1"></div>
+                </div>
+
+                <hr class="my-8 border-gray-200">
+
+                <div class="flex">
+                    <div class="step-indicator">3</div>
+                    <div>
+                        <h3 class="mt-0">Giải Mã</h3>
+                        <p class="text-sm text-gray-500 mb-4">Bản mã ở trên (hoặc bất kỳ bản mã nào bạn nhập) sẽ được giải mã bằng khóa riêng tư `(n, d)` để khôi phục lại thông điệp gốc. Công thức: `M = C^d mod n`</p>
+                    </div>
+                </div>
+                <div class="pl-14">
+                    <label class="font-semibold">Thông điệp cần giải mã (các số cách nhau bởi dấu cách):</label>
+                    <textarea id="sim_ciphertext_input" class="input-field mt-1" rows="2" placeholder="Dán bản mã vào đây"></textarea>
+                    <button id="sim_decrypt" class="btn btn-primary mt-4">Giải Mã</button>
+                </div>
+                <div class="pl-14">
+                    <label class="font-semibold">Thông điệp đã giải mã (Plaintext):</label>
+                    <div id="sim_decrypted_message" class="output-box mt-1"></div>
+                </div>
+            </div>
+
+            <div id="solution_details" class="solution-details hidden">
+                </div>
+        </section>
+
+        <section id="advanced" class="section-card">
+            <h2>🚀 Nâng Cao & Bảo Mật</h2>
+            <p class="text-gray-600 mb-6">"RSA sách giáo khoa" dễ bị tấn công. Trong thực tế, các phương pháp bổ sung được sử dụng để làm cho nó an toàn hơn và hiệu quả hơn.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3>Đệm Tin Nhắn (Padding)</h3>
+                    <p class="text-gray-600 mb-4">Để ngăn chặn các cuộc tấn công, tin nhắn gốc được "đệm" bằng dữ liệu ngẫu nhiên trước khi mã hóa. <strong>OAEP</strong> (Optimal Asymmetric Encryption Padding) là tiêu chuẩn hiện đại.</p>
+                    <div class="border rounded-lg p-4 bg-gray-50 text-sm">
+                        <div class="font-bold mb-2">Quy trình đệm OAEP (Đơn giản hóa)</div>
+                        <div class="flex items-center space-x-2">
+                            <div class="p-2 bg-yellow-200 rounded">Tin nhắn</div>
+                            <div>+</div>
+                            <div class="p-2 bg-green-200 rounded">Dữ liệu ngẫu nhiên</div>
+                            <div>→</div>
+                            <div class="p-2 bg-blue-200 rounded">Khối dữ liệu đã được đệm</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Định lý Số dư Trung Hoa (CRT)</h3>
+                    <p class="text-gray-600 mb-4">Giải mã với khóa riêng tư `d` lớn có thể rất chậm. CRT cho phép chia phép tính giải mã thành hai phép tính nhỏ hơn (trên `p` và `q`), giúp tăng tốc độ giải mã lên khoảng 4 lần.</p>
+                    <div class="border rounded-lg p-4 bg-gray-50 text-sm">
+                         <div class="font-bold mb-2">Tối ưu hóa giải mã bằng CRT</div>
+                         <div class="font-mono">
+                             <p><span class="text-red-600">Thay vì:</span> M = C^d mod (p*q)</p>
+                             <p><span class="text-green-600">Thực hiện:</span></p>
+                             <p class="ml-4">1. m1 = C^dp mod p</p>
+                             <p class="ml-4">2. m2 = C^dq mod q</p>
+                             <p class="ml-4">3. Kết hợp m1, m2 để tìm M</p>
+                         </div>
+                    </div>
+                </div>
+            </div>
+            <h3 class="mt-8">Độ dài khóa và Bảo mật</h3>
+            <p class="text-gray-600 mb-4">Sức mạnh của RSA phụ thuộc trực tiếp vào độ dài của mô-đun `n`. Các khóa dài hơn sẽ an toàn hơn nhưng cũng tính toán chậm hơn.</p>
+            <div class="chart-container">
+                <canvas id="keyLengthChart"></canvas>
+            </div>
+        </section>
+
+        <section id="applications" class="section-card">
+            <h2>🌐 Ứng Dụng Thực Tế</h2>
+            <p class="text-gray-600 mb-6">RSA là một phần không thể thiếu trong cơ sở hạ tầng an ninh mạng hiện đại, bảo vệ hàng tỷ tương tác kỹ thuật số mỗi ngày.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-gray-50 p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-3">🔒</div>
+                    <h3 class="mt-0 mb-2">HTTPS & TLS/SSL</h3>
+                    <p class="text-sm text-gray-600">Bảo vệ kết nối giữa trình duyệt của bạn và các trang web, đảm bảo dữ liệu duyệt web được an toàn.</p>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-3">✍️</div>
+                    <h3 class="mt-0 mb-2">Chữ Ký Số</h3>
+                    <p class="text-sm text-gray-600">Xác thực nguồn gốc và tính toàn vẹn của tài liệu và phần mềm, đảm bảo chúng không bị giả mạo.</p>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-3">📧</div>
+                    <h3 class="mt-0 mb-2">Email Bảo Mật</h3>
+                    <p class="text-sm text-gray-600">Mã hóa nội dung email để chỉ người nhận dự kiến mới có thể đọc được (ví dụ: PGP).</p>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-3">🛡️</div>
+                    <h3 class="mt-0 mb-2">VPN & SSH</h3>
+                    <p class="text-sm text-gray-600">Thiết lập các kênh giao tiếp an toàn để truy cập từ xa vào các hệ thống và mạng máy tính.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="text-center py-6 border-t border-gray-200 mt-8">
+        <p class="text-sm text-gray-500">Được tạo ra để minh họa các nguyên tắc của thuật toán RSA.</p>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const getEl = (id) => document.getElementById(id);
+
+    function displayError(element, message) {
+        element.textContent = message;
+        element.classList.add('text-red-600');
+    }
+
+    function displayResult(element, result) {
+        element.textContent = result;
+        element.classList.remove('text-red-600');
+    }
+
+    function gcd(a, b) {
+        return b === 0n ? a : gcd(b, a % b);
+    }
+
+    function extendedGcd(a, b) {
+        if (a === 0n) {
+            return [b, 0n, 1n];
+        }
+        const [g, x1, y1] = extendedGcd(b % a, a);
+        const x = y1 - (b / a) * x1;
+        const y = x1;
+        return [g, x, y];
+    }
+
+    function modInverse(e, phi) {
+        const [g, x] = extendedGcd(e, phi);
+        if (g !== 1n) {
+            return null;
+        }
+        return (x % phi + phi) % phi;
+    }
+
+    function power(base, exp, mod) {
+        let res = 1n;
+        base = base % mod;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) res = (res * base) % mod;
+            exp = exp >> 1n;
+            base = (base * base) % mod;
+        }
+        return res;
+    }
+
+    function textToAscii(text) {
+        return text.split('').map(char => char.charCodeAt(0).toString());
+    }
+
+    function asciiToText(asciiArray) {
+        return asciiArray.map(code => String.fromCharCode(Number(code))).join('');
+    }
+
+    getEl('calc_phi').addEventListener('click', () => {
+        try {
+            const p = BigInt(getEl('phi_p').value);
+            const q = BigInt(getEl('phi_q').value);
+            const phi = (p - 1n) * (q - 1n);
+            displayResult(getEl('phi_result'), phi.toString());
+        } catch (e) {
+            displayError(getEl('phi_result'), 'Vui lòng nhập số hợp lệ.');
+        }
+    });
+
+    getEl('calc_mod_inv').addEventListener('click', () => {
+        try {
+            const e = BigInt(getEl('mod_inv_e').value);
+            const phi = BigInt(getEl('mod_inv_phi').value);
+            const d = modInverse(e, phi);
+            if (d !== null) {
+                displayResult(getEl('mod_inv_result'), d.toString());
+            } else {
+                displayError(getEl('mod_inv_result'), 'Không tồn tại nghịch đảo.');
+            }
+        } catch (e) {
+            displayError(getEl('mod_inv_result'), 'Vui lòng nhập số hợp lệ.');
+        }
+    });
+
+    let simState = {};
+
+    getEl('sim_calc_n_phi').addEventListener('click', () => {
+        try {
+            const p = BigInt(getEl('sim_p').value);
+            const q = BigInt(getEl('sim_q').value);
+            simState.p = p;
+            simState.q = q;
+            simState.n = p * q;
+            simState.phi = (p - 1n) * (q - 1n);
+            displayResult(getEl('sim_n_result'), simState.n.toString());
+            displayResult(getEl('sim_phi_result'), simState.phi.toString());
+        } catch (e) {
+            displayError(getEl('sim_n_result'), 'Lỗi');
+            displayError(getEl('sim_phi_result'), 'Lỗi');
+        }
+    });
+
+    getEl('sim_calc_d').addEventListener('click', () => {
+        try {
+            const e = BigInt(getEl('sim_e').value);
+            if (e <= 1n || e >= simState.phi) {
+                displayError(getEl('sim_private_key'), 'e phải thỏa mãn 1 < e < φ(n)');
+                return;
+            }
+            if (gcd(e, simState.phi) !== 1n) {
+                displayError(getEl('sim_private_key'), 'e và φ(n) phải nguyên tố cùng nhau.');
+                return;
+            }
+            simState.e = e;
+            simState.d = modInverse(e, simState.phi);
+            displayResult(getEl('sim_public_key'), `(${simState.n}, ${simState.e})`);
+            displayResult(getEl('sim_private_key'), `(${simState.n}, ${simState.d})`);
+        } catch (e) {
+            displayError(getEl('sim_private_key'), 'Lỗi! Hãy chắc chắn đã tính n và φ(n) trước.');
+        }
+    });
+
+    getEl('sim_encrypt').addEventListener('click', () => {
+        try {
+            const message = getEl('sim_message').value;
+            const asciiMessage = textToAscii(message);
+            const encryptedMessage = asciiMessage.map(m => {
+                const M = BigInt(m);
+                if (M >= simState.n) {
+                    throw new Error(`Giá trị ASCII ${M} lớn hơn hoặc bằng n. Tin nhắn quá lớn cho khóa này.`);
+                }
+                return power(M, simState.e, simState.n).toString().padStart(4, '0');
+            });
+            const ciphertext = encryptedMessage.join(' ');
+            displayResult(getEl('sim_ciphertext'), ciphertext);
+            getEl('sim_ciphertext_input').value = ciphertext;
+        } catch (e) {
+            displayError(getEl('sim_ciphertext'), 'Lỗi mã hóa: ' + e.message);
+        }
+    });
+
+    getEl('sim_decrypt').addEventListener('click', () => {
+        try {
+            const ciphertext = getEl('sim_ciphertext_input').value;
+            const encryptedBlocks = ciphertext.split(' ').filter(b => b);
+            const decryptedAscii = encryptedBlocks.map(c => {
+                const C = BigInt(c);
+                return power(C, simState.d, simState.n).toString();
+            });
+            const decryptedMessage = asciiToText(decryptedAscii);
+            displayResult(getEl('sim_decrypted_message'), decryptedMessage);
+        } catch (e) {
+            displayError(getEl('sim_decrypted_message'), 'Lỗi giải mã. Kiểm tra lại các khóa và bản mã.');
+        }
+    });
+
+    const examples = {
+        ex1: {
+            p: '43', q: '59', e: '13', msg: 'STOP', ciph: '2081 0090 0461 0981', d_known: '937',
+            solutionText: `
+                <h3>Giải Bài 1 & 2: Mã hóa/Giải mã "STOP"</h3>
+                <h4>Bài 1: Mã hóa thông điệp STOP</h4>
+                <p><strong>1. Tạo Khóa (dựa trên p=43, q=59, e=13):</strong></p>
+                <ul>
+                    <li>Tính n = p * q = 43 * 59 = 2537.</li>
+                    <li>Tính Φ(n) = (p - 1) * (q - 1) = (43 - 1) * (59 - 1) = 42 * 58 = 2436.</li>
+                    <li>e = 13 (hợp lệ vì gcd(13, 2436) = 1).</li>
+                    <li>Tính d sao cho (d * 13) ≡ 1 mod 2436. Sử dụng Thuật toán Euclid mở rộng, ta tìm được d = 937.</li>
+                    <li>Khóa công khai: (n=2537, e=13). Khóa riêng tư: (n=2537, d=937).</li>
+                </ul>
+                <p><strong>2. Chuyển đổi thông điệp "STOP" sang số (ASCII):</strong></p>
+                <ul>
+                    <li>S = 83</li>
+                    <li>T = 84</li>
+                    <li>O = 79</li>
+                    <li>P = 80</li>
+                </ul>
+                <p><strong>3. Mã hóa từng ký tự (C = M^e mod n):</strong></p>
+                <ul>
+                    <li>S (M=83): C_S = 83^13 mod 2537 = 2081</li>
+                    <li>T (M=84): C_T = 84^13 mod 2537 = 0090</li>
+                    <li>O (M=79): C_O = 79^13 mod 2537 = 0461</li>
+                    <li>P (M=80): C_P = 80^13 mod 2537 = 0981</li>
+                </ul>
+                <p>Thông điệp mã hóa thu được là: <strong>2081 0090 0461 0981</strong>.</p>
+
+                <h4>Bài 2: Giải mã thông điệp mã hóa thu được ở câu (1) sử dụng d=937.</h4>
+                <p><strong>1. Phân tích đầu vào:</strong></p>
+                <ul>
+                    <li>Thông điệp mã hóa: 2081 0090 0461 0981.</li>
+                    <li>Mô đun n = 2537.</li>
+                    <li>Số mũ giải mã d = 937.</li>
+                </ul>
+                <p><strong>2. Giải mã từng khối (M = C^d mod n):</strong></p>
+                <ul>
+                    <li>Giải mã 2081: M_S = 2081^937 mod 2537 = 83 (ASCII của 'S')</li>
+                    <li>Giải mã 0090: M_T = 0090^937 mod 2537 = 84 (ASCII của 'T')</li>
+                    <li>Giải mã 0461: M_O = 0461^937 mod 2537 = 79 (ASCII của 'O')</li>
+                    <li>Giải mã 0981: M_P = 0981^937 mod 2537 = 80 (ASCII của 'P')</li>
+                </ul>
+                <p>Thông điệp giải mã được là: <strong>83 84 79 80</strong>, tương ứng với "STOP".</p>
+            `
+        },
+        ex3: {
+            p: '43', q: '59', e: '13', msg: '', ciph: '0981 0461', d_known: '937',
+            solutionText: `
+                <h3>Giải Bài 3: Giải mã thông điệp mã hóa 0981 0461</h3>
+                <p><strong>1. Phân tích đầu vào:</strong></p>
+                <ul>
+                    <li>Bộ khóa: n = 2537, d = 937 (được xác định từ Bài 1 & 2).</li>
+                    <li>Thông điệp mã hóa: 0981 0461.</li>
+                </ul>
+                <p><strong>2. Giải mã từng khối (M = C^d mod n):</strong></p>
+                <ul>
+                    <li>Giải mã 0981: M_1 = 0981^937 mod 2537 = 80 (ASCII của 'P')</li>
+                    <li>Giải mã 0461: M_2 = 0461^937 mod 2537 = 79 (ASCII của 'O')</li>
+                </ul>
+                <p>Thông điệp giải mã được là: <strong>80 79</strong>, tương ứng với "PO".</p>
+            `
+        },
+        ex4: {
+            p: '97', q: '173', e: '5', msg: '', ciph: '',
+            solutionText: `
+                <h3>Giải Bài 4: Tạo khóa với p=97 và q=173, giá trị e=5</h3>
+                <p><strong>1. Phân tích đầu vào:</strong></p>
+                <ul>
+                    <li>p = 97</li>
+                    <li>q = 173</li>
+                    <li>e = 5</li>
+                </ul>
+                <p><strong>2. Tạo Khóa:</strong></p>
+                <ul>
+                    <li>Tính n = p * q = 97 * 173 = 16781.</li>
+                    <li>Tính Φ(n) = (p - 1) * (q - 1) = (97 - 1) * (173 - 1) = 96 * 172 = 16512.</li>
+                    <li>e = 5 (hợp lệ vì gcd(5, 16512) = 1).</li>
+                    <li>Tính d sao cho (d * 5) ≡ 1 mod 16512. Sử dụng Thuật toán Euclid mở rộng, ta tìm được d = 6605.</li>
+                </ul>
+                <p>Khóa công khai là: <strong>(n=16781, e=5)</strong>.</p>
+                <p>Khóa riêng tư là: <strong>(n=16781, d=6605)</strong>.</p>
+            `
+        },
+        ex5: {
+            p: '97', q: '173', e: '5', msg: '', ciph: '5347', d_known: '6605',
+            solutionText: `
+                <h3>Giải Bài 5: Tìm thông điệp gốc</h3>
+                <p><strong>1. Phân tích đầu vào:</strong></p>
+                <ul>
+                    <li>Khóa công khai của A: N = 16781, e = 5.</li>
+                    <li>Thông điệp mã hóa từ B: C = 5347.</li>
+                    <li>Yêu cầu: Tìm thông điệp gốc ban đầu (M).</li>
+                </ul>
+                <p><strong>2. Xác định Khóa Riêng Tư của A:</strong></p>
+                <ul>
+                    <li>Từ Bài 4, ta có p = 97, q = 173.</li>
+                    <li>Φ(n) = (97 - 1) * (173 - 1) = 96 * 172 = 16512.</li>
+                    <li>Số mũ giải mã d của A đã được tính là d = 6605 (sao cho (d * 5) ≡ 1 mod 16512).</li>
+                    <li>Khóa riêng tư của A là (n=16781, d=6605).</li>
+                </ul>
+                <p><strong>3. Giải mã thông điệp (M = C^d mod n):</strong></p>
+                <ul>
+                    <li>M = 5347^6605 mod 16781 = 123.</li>
+                </ul>
+                <p>Thông điệp gốc ban đầu là: <strong>123</strong>.</p>
+            `
+        }
+    };
+
+    getEl('example-loader').addEventListener('change', (event) => {
+        const selected = event.target.value;
+        const solutionDetails = getEl('solution_details');
+
+        if (selected === 'none') {
+            resetSim();
+            solutionDetails.classList.add('hidden');
+            solutionDetails.innerHTML = '';
+            return;
+        }
+        
+        const ex = examples[selected];
+        resetSim();
+
+        if (ex.p) getEl('sim_p').value = ex.p;
+        if (ex.q) getEl('sim_q').value = ex.q;
+        
+        getEl('sim_calc_n_phi').click();
+
+        if (ex.e) getEl('sim_e').value = ex.e;
+        getEl('sim_calc_d').click();
+
+        if (ex.msg) getEl('sim_message').value = ex.msg;
+        if (ex.ciph) {
+            getEl('sim_ciphertext_input').value = ex.ciph;
+            displayResult(getEl('sim_ciphertext'), ex.ciph);
+        }
+        if (ex.d_known) { // Override calculated d if provided in exercise
+             simState.d = BigInt(ex.d_known);
+             displayResult(getEl('sim_private_key'), `(${simState.n}, ${simState.d})`);
+        }
+
+        // Display solution details
+        if (ex.solutionText) {
+            solutionDetails.innerHTML = ex.solutionText;
+            solutionDetails.classList.remove('hidden');
+        } else {
+            solutionDetails.classList.add('hidden');
+            solutionDetails.innerHTML = '';
+        }
+    });
+    
+    function resetSim() {
+        simState = {};
+        const ids = ['sim_p', 'sim_q', 'sim_e', 'sim_message', 'sim_ciphertext_input'];
+        ids.forEach(id => getEl(id).value = '');
+        const out_ids = ['sim_n_result', 'sim_phi_result', 'sim_public_key', 'sim_private_key', 'sim_ciphertext', 'sim_decrypted_message'];
+        out_ids.forEach(id => {
+            getEl(id).textContent = '';
+            getEl(id).classList.remove('text-red-600');
+        });
+    }
+
+    const ctx = getEl('keyLengthChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['1024-bit', '2048-bit', '4096-bit'],
+            datasets: [{
+                label: 'Mức độ an toàn tương đối',
+                data: [50, 85, 100],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(255, 206, 86, 0.5)',
+                    'rgba(75, 192, 192, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Mức độ an toàn (Tương đối)'
+                    }
+                },
+                x: {
+                   title: {
+                        display: true,
+                        text: 'Độ dài khóa (bits)'
+                    } 
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                let status = '';
+                                if (context.label === '1024-bit') status = 'Không còn an toàn';
+                                if (context.label === '2048-bit') status = 'An toàn (Tiêu chuẩn hiện tại)';
+                                if (context.label === '4096-bit') status = 'Rất an toàn';
+                                label = status;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('main section');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: "-50% 0px -50% 0px" });
+
+    sections.forEach(section => observer.observe(section));
+});
+</script>
+
+</body>
+</html>
